@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useUserStore } from '../store/userStore';
 import theme from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
   const { user, isAuthenticated, isLoading, login, logout, updatePreferences } = useUserStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const insets = useSafeAreaInsets();
 
   const handleLogin = async () => {
     if (email && password) {
@@ -23,7 +25,7 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
@@ -33,7 +35,7 @@ export default function ProfileScreen() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Text style={styles.title}>My Account</Text>
         </View>
@@ -84,7 +86,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>My Account</Text>
       </View>

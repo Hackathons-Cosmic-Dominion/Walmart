@@ -3,17 +3,10 @@ import { Tabs } from "expo-router";
 import { useState } from "react";
 import LoadingScreen from "../components/LoadingScreen";
 import theme from "../theme";
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function RootLayout() {
-  const [isLoading, setIsLoading] = useState(true);
-
-  const handleLoadingComplete = () => {
-    setIsLoading(false);
-  };
-
-  if (isLoading) {
-    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
-  }
+function TabbedLayout() {
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -22,17 +15,19 @@ export default function RootLayout() {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: theme.colors.background, // was theme.colors.white
+          backgroundColor: theme.colors.background,
           borderTopWidth: 1,
           borderTopColor: theme.colors.border,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 60,
+          paddingBottom: insets.bottom,
+          height: 60 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
         },
+        tabBarIconStyle: {
+          marginTop: 4,
+        }
       }}
     >
       <Tabs.Screen
@@ -71,19 +66,26 @@ export default function RootLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="product"
-        options={{
-          href: null, // This hides the product route from tabs
-        }}
-      />
-      
-      <Tabs.Screen
-        name="product/[id]"
-        options={{
-          href: null, // This hides the dynamic product detail route from tabs
-        }}
-      />
+      <Tabs.Screen name="product" options={{ href: null }} />
+      <Tabs.Screen name="product/[id]" options={{ href: null }} />
     </Tabs>
+  );
+}
+
+export default function RootLayout() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleLoadingComplete = () => {
+    setIsLoading(false);
+  };
+
+  if (isLoading) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
+  }
+
+  return (
+    <SafeAreaProvider>
+      <TabbedLayout />
+    </SafeAreaProvider>
   );
 }
