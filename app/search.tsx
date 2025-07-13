@@ -5,6 +5,7 @@ import { FlatList, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, 
 import ProductCard from '../components/ProductCard';
 import { searchProducts } from '../products';
 import theme from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const popularSearches = [
   'Milk',
@@ -22,6 +23,7 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -47,7 +49,7 @@ export default function SearchScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />

@@ -3,10 +3,12 @@ import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from
 import CartItem from '../components/CartItem';
 import { useCartStore } from '../store/cartStore';
 import theme from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 export default function CartScreen() {
   const { items, getTotalPrice, getTotalSavings, clearCart } = useCartStore();
+  const insets = useSafeAreaInsets();
 
   const formatPrice = (price: number) => {
     return `$${price.toFixed(2)}`;
@@ -28,7 +30,7 @@ export default function CartScreen() {
 
   if (items.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyContainer}>
           <Ionicons name="bag-outline" size={64} color={theme.colors.textSecondary} />
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
@@ -44,7 +46,7 @@ export default function CartScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Shopping Cart</Text>
         <TouchableOpacity onPress={clearCart} style={styles.clearButton}>
