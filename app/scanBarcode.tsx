@@ -352,7 +352,7 @@ export default function ScanBarcodeScreen() {
           
           <View style={styles.instructionContainer}>
             <Text style={styles.instructionText}>
-              {isLoading ? 'Fetching comprehensive product data...' : 'Point your camera at a barcode'}
+              {isLoading ? 'Fetching product data...' : 'Point your camera at a barcode'}
             </Text>
             {scanned && !isLoading && (
               <TouchableOpacity style={styles.resetButton} onPress={resetScanner}>
