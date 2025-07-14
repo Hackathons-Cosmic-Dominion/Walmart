@@ -1,11 +1,13 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useState, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert, Modal, ScrollView, Image } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Alert, Modal, ScrollView, Image, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getProduct, OpenFoodFactsProduct } from '../api/OpenFoodFacts';
 import theme from '../theme';
+
+const { width } = Dimensions.get('window');
 
 export default function ScanBarcodeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -21,13 +23,19 @@ export default function ScanBarcodeScreen() {
     setIsLoading(true);
 
     try {
+      console.log('Scanning barcode:', data);
+      
       // Try to fetch product from Open Food Facts
       const product = await getProduct(data, 'Food');
       
+      // console.log('Product result:', product);
+      
       if (product && product.product) {
+        console.log('Product found, showing modal');
         setProductData(product);
         setShowProductModal(true);
       } else {
+        console.log('Product not found, showing add dialog');
         // Product not found, offer to add it
         Alert.alert(
           'Product Not Found',
@@ -50,6 +58,10 @@ export default function ScanBarcodeScreen() {
                 });
               },
             },
+            {
+              text: 'Try Again',
+              onPress: () => setScanned(false),
+            },
           ]
         );
       }
@@ -57,11 +69,23 @@ export default function ScanBarcodeScreen() {
       console.error('Error fetching product:', error);
       Alert.alert(
         'Error',
-        'Failed to fetch product information. Please try again.',
+        `Failed to fetch product information: ${error instanceof Error ? error.message : 'Unknown error'}\n\nBarcode: ${data}`,
         [
           {
-            text: 'OK',
+            text: 'Try Again',
             onPress: () => setScanned(false),
+          },
+          {
+            text: 'Add Manually',
+            onPress: () => {
+              router.push({
+                pathname: '/addProduct' as any,
+                params: { 
+                  ean: data,
+                  category: 'Food' 
+                },
+              });
+            },
           },
         ]
       );
@@ -79,6 +103,196 @@ export default function ScanBarcodeScreen() {
   const closeModal = () => {
     setShowProductModal(false);
     setScanned(false);
+  };
+
+  const getProductName = (product: any) => {
+    return product.product_name_en || product.product_name || 'Unknown Product';
+  };
+
+  const getGenericName = (product: any) => {
+    return product.generic_name_en || product.generic_name || null;
+  };
+
+  const getIngredientsText = (product: any) => {
+    return product.ingredients_text_en || product.ingredients_text || null;
+  };
+
+  const renderNutritionFacts = (nutriments: any) => {
+    if (!nutriments) return null;
+
+    const nutritionItems = [
+      { key: 'energy-kcal', label: 'Energy', unit: 'kcal', icon: 'flash-outline' },
+      { key: 'fat', label: 'Fat', unit: 'g', icon: 'water-outline' },
+      { key: 'saturated-fat', label: 'Saturated Fat', unit: 'g', icon: 'water-outline', isSubItem: true },
+      { key: 'carbohydrates', label: 'Carbohydrates', unit: 'g', icon: 'nutrition-outline' },
+      { key: 'sugars', label: 'Sugars', unit: 'g', icon: 'nutrition-outline', isSubItem: true },
+      { key: 'fiber', label: 'Fiber', unit: 'g', icon: 'leaf-outline' },
+      { key: 'proteins', label: 'Protein', unit: 'g', icon: 'fitness-outline' },
+      { key: 'salt', label: 'Salt', unit: 'g', icon: 'cube-outline' },
+      { key: 'sodium', label: 'Sodium', unit: 'mg', icon: 'cube-outline', isSubItem: true },
+    ];
+
+    return (
+      <View style={styles.nutritionSection}>
+        <Text style={styles.sectionTitle}>Nutrition Facts (per 100g)</Text>
+        {nutritionItems.map((item) => {
+          const value = nutriments[item.key];
+          if (value === undefined || value === null) return null;
+
+          return (
+            <View key={item.key} style={[styles.nutritionRow, item.isSubItem && styles.nutritionSubRow]}>
+              <Ionicons name={item.icon as any} size={16} color={theme.colors.primary} />
+              <Text style={[styles.nutritionLabel, item.isSubItem && styles.nutritionSubLabel]}>
+                {item.label}
+              </Text>
+              <Text style={styles.nutritionValue}>
+                {typeof value === 'number' ? value.toFixed(1) : value} {item.unit}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderMinerals = (nutriments: any) => {
+    if (!nutriments) return null;
+
+    const minerals = [
+      { key: 'calcium', label: 'Calcium', unit: 'mg' },
+      { key: 'magnesium', label: 'Magnesium', unit: 'mg' },
+      { key: 'potassium', label: 'Potassium', unit: 'mg' },
+      { key: 'bicarbonate', label: 'Bicarbonate', unit: 'mg' },
+      { key: 'chloride', label: 'Chloride', unit: 'mg' },
+      { key: 'fluoride', label: 'Fluoride', unit: 'mg' },
+      { key: 'nitrate', label: 'Nitrate', unit: 'mg' },
+      { key: 'silica', label: 'Silica', unit: 'mg' },
+      { key: 'sulphate', label: 'Sulphate', unit: 'mg' },
+    ];
+
+    const availableMinerals = minerals.filter(mineral => 
+      nutriments[mineral.key] !== undefined && nutriments[mineral.key] !== null
+    );
+
+    if (availableMinerals.length === 0) return null;
+
+    return (
+      <View style={styles.mineralsSection}>
+        <Text style={styles.sectionTitle}>Minerals & Compounds</Text>
+        {availableMinerals.map((mineral) => {
+          const value = nutriments[mineral.key];
+          return (
+            <View key={mineral.key} style={styles.mineralRow}>
+              <Ionicons name="diamond-outline" size={16} color={theme.colors.secondary} />
+              <Text style={styles.mineralLabel}>{mineral.label}</Text>
+              <Text style={styles.mineralValue}>
+                {typeof value === 'number' ? value.toFixed(3) : value} {mineral.unit}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderCertifications = (labels: string[], ecoscore?: string) => {
+    if (!labels || labels.length === 0) return null;
+
+    // Common certification labels to highlight
+    const certificationKeywords = [
+      'organic', 'bio', 'vegan', 'vegetarian', 'gluten-free', 'fair-trade', 
+      'sustainable', 'non-gmo', 'kosher', 'halal', 'recyclable'
+    ];
+
+    const certifications = labels.filter(label => 
+      certificationKeywords.some(keyword => 
+        label.toLowerCase().includes(keyword)
+      )
+    );
+
+    if (certifications.length === 0 && !ecoscore) return null;
+
+    return (
+      <View style={styles.certificationsSection}>
+        <Text style={styles.sectionTitle}>Certifications & Eco-Score</Text>
+        {ecoscore && (
+          <View style={styles.certificationBadge}>
+            <Ionicons name="leaf" size={16} color="#22C55E" />
+            <Text style={styles.certificationText}>Eco-Score: {ecoscore.toUpperCase()}</Text>
+          </View>
+        )}
+        {certifications.map((cert, index) => (
+          <View key={index} style={styles.certificationBadge}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.certificationText}>{cert}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderPackagingInfo = (packagings: any[] | undefined) => {
+    if (!packagings || packagings.length === 0) return null;
+
+    return (
+      <View style={styles.packagingSection}>
+        <Text style={styles.sectionTitle}>Packaging Information</Text>
+        {packagings.map((pkg, index) => (
+          <View key={index} style={styles.packagingItem}>
+            <Ionicons name="cube-outline" size={16} color={theme.colors.secondary} />
+            <View style={styles.packagingDetails}>
+              {pkg.material && (
+                <Text style={styles.packagingText}>Material: {pkg.material.replace('en:', '')}</Text>
+              )}
+              {pkg.shape && (
+                <Text style={styles.packagingText}>Shape: {pkg.shape.replace('en:', '')}</Text>
+              )}
+              {pkg.recycling && (
+                <Text style={styles.packagingText}>Recycling: {pkg.recycling.replace('en:', '')}</Text>
+              )}
+              {pkg.weight_measured && (
+                <Text style={styles.packagingText}>Weight: {pkg.weight_measured}g</Text>
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderOriginInfo = (product: any) => {
+    const origin = product.origins || product.origin_en || product.origin;
+    const manufacturingPlaces = product.manufacturing_places;
+    const countries = product.countries;
+
+    if (!origin && !manufacturingPlaces && !countries) return null;
+
+    return (
+      <View style={styles.originSection}>
+        <Text style={styles.sectionTitle}>Origin & Manufacturing</Text>
+        {origin && (
+          <View style={styles.originRow}>
+            <Ionicons name="location-outline" size={16} color={theme.colors.primary} />
+            <Text style={styles.originLabel}>Origin:</Text>
+            <Text style={styles.originValue}>{origin}</Text>
+          </View>
+        )}
+        {manufacturingPlaces && (
+          <View style={styles.originRow}>
+            <Ionicons name="business-outline" size={16} color={theme.colors.primary} />
+            <Text style={styles.originLabel}>Manufactured:</Text>
+            <Text style={styles.originValue}>{manufacturingPlaces}</Text>
+          </View>
+        )}
+        {countries && (
+          <View style={styles.originRow}>
+            <Ionicons name="globe-outline" size={16} color={theme.colors.primary} />
+            <Text style={styles.originLabel}>Sold in:</Text>
+            <Text style={styles.originValue}>{countries}</Text>
+          </View>
+        )}
+      </View>
+    );
   };
 
   if (!permission) {
@@ -125,7 +339,7 @@ export default function ScanBarcodeScreen() {
         facing="back"
         onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
         barcodeScannerSettings={{
-          barcodeTypes: ["qr", "pdf417", "aztec", "ean13", "ean8", "upc_a", "upc_e", "code128", "code39", "code93", "codabar", "itf14", "datamatrix"],
+          barcodeTypes: ["ean13", "upc_a", "ean8", "upc_e", "qr"],
         }}
       >
         <View style={styles.overlay}>
@@ -138,7 +352,7 @@ export default function ScanBarcodeScreen() {
           
           <View style={styles.instructionContainer}>
             <Text style={styles.instructionText}>
-              {isLoading ? 'Fetching product details...' : 'Point your camera at a barcode'}
+              {isLoading ? 'Fetching comprehensive product data...' : 'Point your camera at a barcode'}
             </Text>
             {scanned && !isLoading && (
               <TouchableOpacity style={styles.resetButton} onPress={resetScanner}>
@@ -149,7 +363,7 @@ export default function ScanBarcodeScreen() {
         </View>
       </CameraView>
 
-      {/* Product Details Modal */}
+      {/* Enhanced Product Details Modal */}
       <Modal
         visible={showProductModal}
         animationType="slide"
@@ -158,7 +372,7 @@ export default function ScanBarcodeScreen() {
       >
         <View style={[styles.modalContainer, { paddingTop: insets.top }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Product Details</Text>
+            <Text style={styles.modalTitle}>Complete Product Information</Text>
             <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={theme.colors.text} />
             </TouchableOpacity>
@@ -176,70 +390,122 @@ export default function ScanBarcodeScreen() {
                   />
                 )}
 
-                {/* Product Name */}
+                {/* Product Name & Generic Name */}
                 <Text style={styles.productName}>
-                  {productData.product.product_name || 'Unknown Product'}
+                  {getProductName(productData.product)}
                 </Text>
-
-                {/* Brand */}
-                {productData.product.brands && (
-                  <View style={styles.detailRow}>
-                    <Ionicons name="business-outline" size={20} color={theme.colors.primary} />
-                    <View style={styles.detailContent}>
-                      <Text style={styles.detailLabel}>Brand</Text>
-                      <Text style={styles.detailValue}>{productData.product.brands}</Text>
-                    </View>
-                  </View>
+                {getGenericName(productData.product) && (
+                  <Text style={styles.genericName}>
+                    {getGenericName(productData.product)}
+                  </Text>
                 )}
 
-                {/* Categories */}
-                {productData.product.categories && (
-                  <View style={styles.detailRow}>
-                    <Ionicons name="grid-outline" size={20} color={theme.colors.primary} />
-                    <View style={styles.detailContent}>
-                      <Text style={styles.detailLabel}>Categories</Text>
-                      <Text style={styles.detailValue}>{productData.product.categories}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Labels */}
-                {productData.product.labels && (
-                  <View style={styles.detailRow}>
-                    <Ionicons name="pricetag-outline" size={20} color={theme.colors.primary} />
-                    <View style={styles.detailContent}>
-                      <Text style={styles.detailLabel}>Labels</Text>
-                      <Text style={styles.detailValue}>{productData.product.labels}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Nutrition Grade */}
-                {productData.product.nutrition_grade_fr && (
-                  <View style={styles.detailRow}>
-                    <Ionicons name="fitness-outline" size={20} color={theme.colors.primary} />
-                    <View style={styles.detailContent}>
-                      <Text style={styles.detailLabel}>Nutrition Grade</Text>
-                      <View style={styles.nutritionGrade}>
-                        <Text style={[
-                          styles.nutritionGradeText,
-                          { backgroundColor: getNutritionGradeColor(productData.product.nutrition_grade_fr) }
-                        ]}>
-                          {productData.product.nutrition_grade_fr.toUpperCase()}
-                        </Text>
+                {/* Basic Info */}
+                <View style={styles.basicInfoSection}>
+                  {/* Brand */}
+                  {productData.product.brands && (
+                    <View style={styles.detailRow}>
+                      <Ionicons name="business-outline" size={20} color={theme.colors.primary} />
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>Brand</Text>
+                        <Text style={styles.detailValue}>{productData.product.brands}</Text>
                       </View>
                     </View>
+                  )}
+
+                  {/* Categories */}
+                  {productData.product.categories && (
+                    <View style={styles.detailRow}>
+                      <Ionicons name="grid-outline" size={20} color={theme.colors.primary} />
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>Categories</Text>
+                        <Text style={styles.detailValue}>{productData.product.categories}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Quantity */}
+                  {productData.product.quantity && (
+                    <View style={styles.detailRow}>
+                      <Ionicons name="scale-outline" size={20} color={theme.colors.primary} />
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>Quantity</Text>
+                        <Text style={styles.detailValue}>{productData.product.quantity}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Nutrition Grade */}
+                  {(productData.product.nutrition_grade_fr || productData.product.nutriscore_grade) && (
+                    <View style={styles.detailRow}>
+                      <Ionicons name="fitness-outline" size={20} color={theme.colors.primary} />
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>Nutri-Score</Text>
+                        <View style={styles.nutritionGrade}>
+                          <Text style={[
+                            styles.nutritionGradeText,
+                            { backgroundColor: getNutritionGradeColor(productData.product.nutrition_grade_fr || productData.product.nutriscore_grade || '') }
+                          ]}>
+                            {(productData.product.nutrition_grade_fr || productData.product.nutriscore_grade || '').toUpperCase()}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* NOVA Group */}
+                  {productData.product.nova_group && (
+                    <View style={styles.detailRow}>
+                      <Ionicons name="fast-food-outline" size={20} color={theme.colors.primary} />
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>NOVA Group (Processing Level)</Text>
+                        <Text style={styles.detailValue}>Group {productData.product.nova_group}</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                {/* Ingredients */}
+                {getIngredientsText(productData.product) && (
+                  <View style={styles.ingredientsSection}>
+                    <Text style={styles.sectionTitle}>Ingredients</Text>
+                    <Text style={styles.ingredientsText}>{getIngredientsText(productData.product)}</Text>
                   </View>
                 )}
 
-                {/* Ingredients */}
-                {productData.product.ingredients_text && (
-                  <View style={styles.detailRow}>
-                    <Ionicons name="list-outline" size={20} color={theme.colors.primary} />
-                    <View style={styles.detailContent}>
-                      <Text style={styles.detailLabel}>Ingredients</Text>
-                      <Text style={styles.detailValue}>{productData.product.ingredients_text}</Text>
+                {/* Nutrition Facts */}
+                {renderNutritionFacts(productData.product.nutriments)}
+
+                {/* Minerals & Compounds */}
+                {renderMinerals(productData.product.nutriments)}
+
+                {/* Certifications & Labels */}
+                {renderCertifications(productData.product.labels_tags, productData.product.ecoscore_grade)}
+
+                {/* Packaging Information */}
+                {renderPackagingInfo(productData.product.packagings)}
+
+                {/* Origin & Manufacturing */}
+                {renderOriginInfo(productData.product)}
+
+                {/* Data Quality Indicator */}
+                {productData.product.completeness && (
+                  <View style={styles.qualitySection}>
+                    <Text style={styles.sectionTitle}>Data Quality</Text>
+                    <View style={styles.qualityRow}>
+                      <Ionicons name="checkmark-circle-outline" size={16} color={theme.colors.success} />
+                      <Text style={styles.qualityText}>
+                        Completeness: {Math.round(productData.product.completeness * 100)}%
+                      </Text>
                     </View>
+                    {productData.product.scans_n && (
+                      <View style={styles.qualityRow}>
+                        <Ionicons name="eye-outline" size={16} color={theme.colors.info} />
+                        <Text style={styles.qualityText}>
+                          Scanned {productData.product.scans_n} times
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
 
@@ -454,8 +720,25 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.text,
-    marginBottom: theme.spacing.l,
+    marginBottom: theme.spacing.s,
     textAlign: 'center',
+  },
+  genericName: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: theme.spacing.l,
+  },
+  basicInfoSection: {
+    marginBottom: theme.spacing.l,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.m,
+    marginTop: theme.spacing.l,
   },
   detailRow: {
     flexDirection: 'row',
@@ -489,6 +772,151 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.borderRadii.s,
     overflow: 'hidden',
+  },
+  ingredientsSection: {
+    marginTop: theme.spacing.l,
+    padding: theme.spacing.m,
+    backgroundColor: theme.colors.gray50,
+    borderRadius: theme.borderRadii.m,
+  },
+  ingredientsText: {
+    fontSize: 15,
+    color: theme.colors.text,
+    lineHeight: 22,
+  },
+  nutritionSection: {
+    marginTop: theme.spacing.l,
+    padding: theme.spacing.m,
+    backgroundColor: '#EBF8FF',
+    borderRadius: theme.borderRadii.m,
+  },
+  nutritionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  nutritionSubRow: {
+    paddingLeft: theme.spacing.l,
+  },
+  nutritionLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: theme.colors.text,
+    marginLeft: theme.spacing.s,
+  },
+  nutritionSubLabel: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+  nutritionValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  mineralsSection: {
+    marginTop: theme.spacing.l,
+    padding: theme.spacing.m,
+    backgroundColor: '#F0FDF4',
+    borderRadius: theme.borderRadii.m,
+  },
+  mineralRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
+  },
+  mineralLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    marginLeft: theme.spacing.s,
+  },
+  mineralValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  certificationsSection: {
+    marginTop: theme.spacing.l,
+    padding: theme.spacing.m,
+    backgroundColor: '#ECFDF5',
+    borderRadius: theme.borderRadii.m,
+  },
+  certificationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.s,
+    padding: theme.spacing.s,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadii.s,
+  },
+  certificationText: {
+    marginLeft: theme.spacing.s,
+    fontSize: 14,
+    color: theme.colors.text,
+    textTransform: 'capitalize',
+  },
+  packagingSection: {
+    marginTop: theme.spacing.l,
+    padding: theme.spacing.m,
+    backgroundColor: '#FFFBEB',
+    borderRadius: theme.borderRadii.m,
+  },
+  packagingItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.m,
+  },
+  packagingDetails: {
+    flex: 1,
+    marginLeft: theme.spacing.s,
+  },
+  packagingText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+    textTransform: 'capitalize',
+  },
+  originSection: {
+    marginTop: theme.spacing.l,
+    padding: theme.spacing.m,
+    backgroundColor: '#FAF5FF',
+    borderRadius: theme.borderRadii.m,
+  },
+  originRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.s,
+  },
+  originLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginLeft: theme.spacing.s,
+    minWidth: 80,
+  },
+  originValue: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    marginLeft: theme.spacing.s,
+  },
+  qualitySection: {
+    marginTop: theme.spacing.l,
+    padding: theme.spacing.m,
+    backgroundColor: '#F8FAFC',
+    borderRadius: theme.borderRadii.m,
+  },
+  qualityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.s,
+  },
+  qualityText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    marginLeft: theme.spacing.s,
   },
   actionButtons: {
     marginTop: theme.spacing.xl,
