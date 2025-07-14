@@ -23,7 +23,7 @@ jobs:
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: 'latest'
           cache: pnpm
 
       - name: 🏗 Setup EAS
@@ -41,5 +41,5 @@ jobs:
       - name: 🚀 Release GitHub
         uses: softprops/action-gh-release@v2
         with:
-          files: /home/runner/work/GodMusic/GodMusic/app-release.apk
+          files: /home/runner/work/StickerSmash/StickerSmash/app-release.apk
           token: ${{ secrets.GITHUB_TOKEN }}
