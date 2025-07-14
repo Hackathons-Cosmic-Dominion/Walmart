@@ -1,4 +1,5 @@
 import { userAgent } from '../config/OFFAuth';
+import { productCache } from '../services/ProductCache';
 
 export interface ProductUploadArgs {
   ean: string;
@@ -475,11 +476,20 @@ function _getBaseUrl(category: string): string {
 }
 
 export async function getProduct(ean: string, category: string): Promise<OpenFoodFactsProduct | null> {
-  // Try both API v2 and v0 for better compatibility
-  const urlV2 = `${_getBaseUrl(category)}/api/v2/product/${ean}?lc=en`;
-  const urlV0 = `${_getBaseUrl(category)}/api/v0/product/${ean}.json`;
-
   try {
+    // First check cache
+    const cachedProduct = await productCache.getProduct(ean);
+    if (cachedProduct) {
+      console.log('📦 Cache hit! Using cached product for:', ean);
+      return cachedProduct;
+    }
+
+    console.log('🌐 Cache miss. Fetching from API for:', ean);
+    
+    // Try both API v2 and v0 for better compatibility
+    const urlV2 = `${_getBaseUrl(category)}/api/v2/product/${ean}?lc=en`;
+    const urlV0 = `${_getBaseUrl(category)}/api/v0/product/${ean}.json`;
+
     console.log('Fetching product from:', urlV2);
     
     // First try API v2
@@ -512,7 +522,7 @@ export async function getProduct(ean: string, category: string): Promise<OpenFoo
     }
     
     const product = await response.json();
-    console.log('Product response:', JSON.stringify(product, null, 2));
+    console.log('Product response status:', product.status);
     
     if (product.status === 0 || product.status === "0") {
       console.log('Product not found in database');
@@ -520,7 +530,11 @@ export async function getProduct(ean: string, category: string): Promise<OpenFoo
     }
     
     if (product.status === 1 || product.status === "1") {
-      console.log('Product found successfully');
+      console.log('✅ Product found successfully. Caching...');
+      
+      // Cache the successful result
+      await productCache.setProduct(ean, product);
+      
       return product;
     }
     
@@ -530,6 +544,26 @@ export async function getProduct(ean: string, category: string): Promise<OpenFoo
     console.error('Error fetching product:', error);
     return null;
   }
+}
+
+// Get cached product without API call (for quick checks)
+export async function getCachedProduct(ean: string): Promise<OpenFoodFactsProduct | null> {
+  return await productCache.getProduct(ean);
+}
+
+// Check if product is cached
+export function isProductCached(ean: string): boolean {
+  return productCache.isProductCached(ean);
+}
+
+// Get cache statistics
+export async function getCacheStats() {
+  return await productCache.getCacheStats();
+}
+
+// Clear cache
+export async function clearProductCache(): Promise<void> {
+  await productCache.clearCache();
 }
 
 export async function uploadProductToOFF(args: ProductUploadArgs): Promise<void> {

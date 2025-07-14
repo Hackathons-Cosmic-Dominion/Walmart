@@ -1,15 +1,65 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useState, useEffect } from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { useUserStore } from '../store/userStore';
 import theme from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getCacheStats, clearProductCache } from '../api/OpenFoodFacts';
 
 export default function ProfileScreen() {
   const { user, isAuthenticated, isLoading, login, logout, updatePreferences } = useUserStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [cacheStats, setCacheStats] = useState({
+    totalItems: 0,
+    totalSize: '0 B',
+    hitRate: '0%',
+    oldestEntry: 'N/A',
+    newestEntry: 'N/A'
+  });
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadCacheStats();
+    }
+  }, [isAuthenticated]);
+
+  const loadCacheStats = async () => {
+    try {
+      const stats = await getCacheStats();
+      setCacheStats(stats);
+    } catch (error) {
+      console.error('Error loading cache stats:', error);
+    }
+  };
+
+  const handleClearCache = () => {
+    Alert.alert(
+      'Clear Cache',
+      `This will clear ${cacheStats.totalItems} cached products (${cacheStats.totalSize}). You'll need to fetch product data again when scanning. Continue?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear Cache',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearProductCache();
+              await loadCacheStats(); // Refresh stats
+              Alert.alert('Success', 'Product cache cleared successfully');
+            } catch (error) {
+              console.error('Error clearing cache:', error);
+              Alert.alert('Error', 'Failed to clear cache');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleLogin = async () => {
     if (email && password) {
@@ -160,6 +210,43 @@ export default function ProfileScreen() {
               thumbColor={theme.colors.white}
             />
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Storage & Cache</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={loadCacheStats}>
+            <Ionicons name="refresh-outline" size={24} color={theme.colors.textSecondary} />
+            <Text style={styles.menuText}>Refresh Cache Stats</Text>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <View style={styles.cacheStatsContainer}>
+            <View style={styles.cacheStatRow}>
+              <Ionicons name="cube-outline" size={20} color={theme.colors.primary} />
+              <Text style={styles.cacheStatLabel}>Cached Products:</Text>
+              <Text style={styles.cacheStatValue}>{cacheStats.totalItems}</Text>
+            </View>
+            <View style={styles.cacheStatRow}>
+              <Ionicons name="archive-outline" size={20} color={theme.colors.primary} />
+              <Text style={styles.cacheStatLabel}>Storage Used:</Text>
+              <Text style={styles.cacheStatValue}>{cacheStats.totalSize}</Text>
+            </View>
+            <View style={styles.cacheStatRow}>
+              <Ionicons name="analytics-outline" size={20} color={theme.colors.primary} />
+              <Text style={styles.cacheStatLabel}>Cache Hit Rate:</Text>
+              <Text style={styles.cacheStatValue}>{cacheStats.hitRate}</Text>
+            </View>
+          </View>
+          <TouchableOpacity 
+            style={[styles.menuItem, styles.dangerMenuItem]} 
+            onPress={handleClearCache}
+            disabled={cacheStats.totalItems === 0}
+          >
+            <Ionicons name="trash-outline" size={24} color={cacheStats.totalItems === 0 ? theme.colors.gray400 : theme.colors.error} />
+            <Text style={[styles.menuText, { color: cacheStats.totalItems === 0 ? theme.colors.gray400 : theme.colors.error }]}>
+              Clear Product Cache
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={cacheStats.totalItems === 0 ? theme.colors.gray400 : theme.colors.error} />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -335,4 +422,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-}); 
+  cacheStatsContainer: {
+    padding: theme.spacing.m,
+    backgroundColor: theme.colors.gray50,
+    marginHorizontal: theme.spacing.m,
+    marginVertical: theme.spacing.s,
+    borderRadius: theme.borderRadii.m,
+  },
+  cacheStatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.s,
+  },
+  cacheStatLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginLeft: theme.spacing.s,
+  },
+  cacheStatValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  dangerMenuItem: {
+    borderTopColor: theme.colors.border,
+  },
+});
