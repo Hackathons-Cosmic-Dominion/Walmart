@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
-import { useState, useRef } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert, Modal, ScrollView, Image, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +15,29 @@ export default function ScanBarcodeScreen() {
   const [productData, setProductData] = useState<OpenFoodFactsProduct | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [cameraKey, setCameraKey] = useState(0);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  // Reset scanner state when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Scanner screen focused');
+      setIsFocused(true);
+      setScanned(false);
+      setProductData(null);
+      setShowProductModal(false);
+      setIsLoading(false);
+      // Force camera remount with new key
+      setCameraKey(prev => prev + 1);
+      
+      return () => {
+        console.log('Scanner screen unfocused');
+        setIsFocused(false);
+      };
+    }, [])
+  );
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
@@ -334,14 +355,16 @@ export default function ScanBarcodeScreen() {
         <Text style={styles.headerTitle}>Scan Barcode</Text>
       </View>
 
-      <CameraView
-        style={styles.camera}
-        facing="back"
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ["ean13", "upc_a", "ean8", "upc_e", "qr"],
-        }}
-      >
+      {isFocused && permission.granted && (
+        <CameraView
+          key={cameraKey}
+          style={styles.camera}
+          facing="back"
+          onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ["ean13", "upc_a", "ean8", "upc_e", "qr"],
+          }}
+        >
         <View style={styles.overlay}>
           <View style={styles.scannerFrame}>
             <View style={styles.cornerTopLeft} />
@@ -361,7 +384,16 @@ export default function ScanBarcodeScreen() {
             )}
           </View>
         </View>
-      </CameraView>
+        </CameraView>
+      )}
+
+      {!isFocused && (
+        <View style={styles.camera}>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Initializing camera...</Text>
+          </View>
+        </View>
+      )}
 
       {/* Enhanced Product Details Modal */}
       <Modal
