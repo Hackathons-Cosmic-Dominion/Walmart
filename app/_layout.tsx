@@ -68,6 +68,9 @@ function TabbedLayout() {
       />
       <Tabs.Screen name="product" options={{ href: null }} />
       <Tabs.Screen name="product/[id]" options={{ href: null }} />
+      <Tabs.Screen name="addProduct" options={{ href: null }} />
+      <Tabs.Screen name="takePicture" options={{ href: null }} />
+      <Tabs.Screen name="scanBarcode" options={{ href: null }} />
     </Tabs>
   );
 }

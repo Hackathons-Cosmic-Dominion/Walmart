@@ -39,6 +39,16 @@ export default function HomeScreen() {
     router.push(`/product/${productId}`);
   };
 
+  const handleAddProductPress = () => {
+    // Navigate to add product screen
+    router.push('/addProduct' as any);
+  };
+
+  const handleScanBarcodePress = () => {
+    // Navigate to barcode scanner screen
+    router.push('/scanBarcode' as any);
+  };
+
   const renderProduct = ({ item }: { item: any }) => (
     <View style={styles.productContainer}>
       <ProductCard
@@ -54,6 +64,8 @@ export default function HomeScreen() {
         onSearchPress={handleSearchPress}
         onCartPress={handleCartPress}
         onUserPress={handleUserPress}
+        onAddProductPress={handleAddProductPress}
+        onScanBarcodePress={handleScanBarcodePress}
       />
       
       <CategoryFilter
