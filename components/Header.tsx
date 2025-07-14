@@ -7,12 +7,16 @@ interface HeaderProps {
   onSearchPress: () => void;
   onCartPress: () => void;
   onUserPress: () => void;
+  onAddProductPress?: () => void;
+  onScanBarcodePress?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
   onSearchPress,
   onCartPress,
   onUserPress,
+  onAddProductPress,
+  onScanBarcodePress,
 }) => {
   return (
     <View style={styles.container}>
@@ -28,6 +32,12 @@ const Header: React.FC<HeaderProps> = ({
         </View>
         
         <View style={styles.topActions}>
+          {onAddProductPress && (
+            <TouchableOpacity style={styles.iconButton} onPress={onAddProductPress}>
+              <Ionicons name="add-circle-outline" size={24} color={theme.colors.white} />
+            </TouchableOpacity>
+          )}
+          
           <TouchableOpacity style={styles.iconButton} onPress={onUserPress}>
             <Ionicons name="person-outline" size={24} color={theme.colors.white} />
           </TouchableOpacity>
@@ -48,13 +58,21 @@ const Header: React.FC<HeaderProps> = ({
 
       {/* Search section */}
       <View style={styles.searchSection}>
-        <TouchableOpacity style={styles.searchContainer} onPress={onSearchPress}>
-          <Ionicons name="search" size={20} color={theme.colors.gray500} style={styles.searchIcon} />
-          <Text style={styles.searchPlaceholder}>Search Walmart</Text>
-          <TouchableOpacity style={styles.voiceButton}>
-            <Ionicons name="mic-outline" size={20} color={theme.colors.gray500} />
+        <View style={styles.searchRow}>
+          <TouchableOpacity style={styles.searchContainer} onPress={onSearchPress}>
+            <Ionicons name="search" size={20} color={theme.colors.gray500} style={styles.searchIcon} />
+            <Text style={styles.searchPlaceholder}>Search Walmart</Text>
+            <TouchableOpacity style={styles.voiceButton}>
+              <Ionicons name="mic-outline" size={20} color={theme.colors.gray500} />
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+          
+          {onScanBarcodePress && (
+            <TouchableOpacity style={styles.scanButton} onPress={onScanBarcodePress}>
+              <Ionicons name="barcode-outline" size={24} color={theme.colors.white} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -118,13 +136,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.m,
     paddingTop: theme.spacing.s,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadii.m,
     paddingHorizontal: theme.spacing.m,
     paddingVertical: theme.spacing.s,
+  },
+  scanButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginLeft: theme.spacing.s,
+    padding: theme.spacing.s,
+    borderRadius: theme.borderRadii.m,
   },
   searchIcon: {
     marginRight: theme.spacing.s,
@@ -146,4 +175,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Header; 
+export default Header;
