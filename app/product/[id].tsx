@@ -5,17 +5,19 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } fr
 import { products } from '../../products';
 import { useCartStore } from '../../store/cartStore';
 import theme from '../../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
+  const insets = useSafeAreaInsets();
   
   const product = products.find(p => p.id === id);
 
   if (!product) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Product not found</Text>
         </View>
@@ -49,7 +51,7 @@ export default function ProductDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
